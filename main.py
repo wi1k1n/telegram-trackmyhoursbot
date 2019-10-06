@@ -41,8 +41,11 @@ def check_leave_group(update, context):
 		update.message.bot.leave_chat(update.message.chat_id)
 
 def start(update, context):
-	dbh.get_task_list(update.message.chat_id)
-
+	tasks = dbh.get_task_list(update.message.chat_id)
+	if tasks is None:
+		update.message.reply_text('An error occurred. Please try again later')
+		return
+	msg = 'You have {0} tasks'.format(len(tasks))
 	keyboard = [[tg.InlineKeyboardButton("1", callback_data='1'),
 				tg.InlineKeyboardButton("2", callback_data='2')],
 
@@ -53,7 +56,14 @@ def start(update, context):
 	update.message.reply_text('Please choose:', reply_markup=reply_markup)
 
 def list(update, context):
-	update.message.reply_text("WARNING: Function 'list' is not implemented yet!")
+	# update.message.reply_text("WARNING: Function 'list' is not implemented yet!")
+
+	err, tasks = dbh.get_task_list(update.message.chat_id)
+	if err != 0:
+		update.message.reply_text("An error occurred on server. This case has already been reported. Please, come back later!")
+
+	for task in tasks:
+		logger.info(task)
 
 def new(update, context):
 	# update.message.reply_text("WARNING: Function 'new' is not implemented yet!")
