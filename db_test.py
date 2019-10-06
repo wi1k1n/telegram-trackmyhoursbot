@@ -1,9 +1,7 @@
-from dbhandler import DBHandler
+import dbhandler as dbh
 
-dbh = DBHandler('main.db')
-dbh.create_table_tasks()
-
-tasks = dbh.get_task_list(278720684)
+# dbh.create_task(12)
+tasks = dbh.get_tasks_list(12)
 if tasks is None: print('Get tasks list command failed')
 else:
 	print('You have {0} tasks.'.format(len(tasks)))

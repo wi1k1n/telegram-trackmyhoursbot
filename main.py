@@ -42,9 +42,6 @@ def check_leave_group(update, context):
 
 def start(update, context):
 	tasks = dbh.get_task_list(update.message.chat_id)
-	if tasks is None:
-		update.message.reply_text('An error occurred. Please try again later')
-		return
 	msg = 'You have {0} tasks'.format(len(tasks))
 	keyboard = [[tg.InlineKeyboardButton("1", callback_data='1'),
 				tg.InlineKeyboardButton("2", callback_data='2')],
