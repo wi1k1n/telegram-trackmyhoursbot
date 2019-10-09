@@ -8,16 +8,15 @@ Basic example for a bot that uses inline keyboards.
 import logging
 
 import telegram as tg
+from telegram import InlineKeyboardButton as ikbtn, InlineKeyboardMarkup as ikbmkp
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Filters
 
-from dbhandler import DBHandler
+import dbhandler as dbh
+from api_token import TOKEN as TOKEN
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-dbh = DBHandler("main.db")
-
 
 def help(update, context):
 	update.message.reply_text("Track your time with this bot.\n\n"
@@ -41,16 +40,59 @@ def check_leave_group(update, context):
 		update.message.bot.leave_chat(update.message.chat_id)
 
 def start(update, context):
-	tasks = dbh.get_task_list(update.message.chat_id)
-	msg = 'You have {0} tasks'.format(len(tasks))
-	keyboard = [[tg.InlineKeyboardButton("1", callback_data='1'),
-				tg.InlineKeyboardButton("2", callback_data='2')],
-
-				[tg.InlineKeyboardButton("3", callback_data='3')]]
-
-	reply_markup = tg.InlineKeyboardMarkup(keyboard)
-
-	update.message.reply_text('Please choose:', reply_markup=reply_markup)
+	chat_id = update.message.chat_id
+	def create_keyboard(arr):
+		return [(ikbtn(row[0], callback_data=row[1])
+				 if type(row) is tuple
+				 else [ikbtn(el[0], callback_data=el[1])
+					   for el in row])
+				for row in arr]
+	keyboard = None
+	reply_msg = ''
+	chat_exist = dbh.chat_exists(chat_id)
+	if (chat_exist):
+		tasks = dbh.get_tasks_list(chat_id)
+		if (len(tasks) == 0):
+			reply_msg = 'You can track your time here. ' \
+						'You have not added any timers yet. ' \
+						'Use the following buttons to do that:'
+			keyboard = create_keyboard([[('Start timer', '/new'), ('Add manually', '/add')],
+										[('/help', '/help')]])
+		else:
+			reply_msg = 'You can track your time here.\n' \
+						'You have {0} timers. Please choose action:'.format(len(tasks))
+			keyboard = create_keyboard([[('Delete all data', '/destroy')],
+										[('Start timer', '/new'), ('List timers', '/list'), ('Add manually', '/add')],
+										[('/help', '/help')]])
+	else:
+		# TODO: handle DB-errors
+		dbh.create_chat(chat_id)
+		tasks = dbh.get_tasks_list(chat_id)
+		if (len(tasks) == 0):
+			reply_msg = 'Welcome! You can track your time here. Please choose action:'
+			keyboard = create_keyboard([[('Start timer', '/new'), ('Add manually', '/add')],
+										[('/help', '/help')]])
+		else:
+			reply_msg = 'Welcome back! You can track your time here.\n' \
+						'There are some data left from your previous session.\n' \
+						'You have {0} timers. Please choose action:'.format(len(tasks))
+			keyboard = create_keyboard([[('Delete all previous data', '/destroy')],
+										[('Start timer', '/new'), ('List timers', '/list'), ('Add manually', '/add')],
+										[('/help', '/help')]])
+	if keyboard:
+		update.message.reply_text(reply_msg, reply_markup=ikbmkp(keyboard))
+	else:
+		update.message.reply_text(reply_msg)
+	# tasks = dbh.get_task_list(update.message.chat_id)
+	# msg = 'You have {0} tasks'.format(len(tasks))
+	# keyboard = [[tg.InlineKeyboardButton("1", callback_data='1'),
+	# 			tg.InlineKeyboardButton("2", callback_data='2')],
+	#
+	# 			[tg.InlineKeyboardButton("3", callback_data='3')]]
+	#
+	# reply_markup = tg.InlineKeyboardMarkup(keyboard)
+	#
+	# update.message.reply_text('Please choose:', reply_markup=reply_markup)
 
 def list(update, context):
 	# update.message.reply_text("WARNING: Function 'list' is not implemented yet!")
@@ -98,18 +140,11 @@ def error(update, context):
 	logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 
-
-def initialize_db(dbh):
-	dbh.create_table_tasks()
-
 def main():
-	# Initializes database, creates all necessary tables if needed
-	initialize_db(dbh)
-
 	# Create the Updater and pass it your bot's token.
 	# Make sure to set use_context=True to use the new context based callbacks
 	# Post version 12 this will no longer be necessary
-	updater = Updater("936170346:AAEs2IYkJNiMJBoBDUSX4-if10fOYTRQH5A", use_context=True)
+	updater = Updater(TOKEN, use_context=True)
 	dp = updater.dispatcher
 
 	dp.add_handler(tg.ext.MessageHandler(Filters.all, check_leave_group), group=0)
