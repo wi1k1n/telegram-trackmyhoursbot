@@ -18,6 +18,17 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# Takes an array of tuples (or of arrays of tuples) of form ('label', 'action')
+# and returns an array of InlineKeyboardButtons
+def create_keyboard(arr):
+	return [(ikbtn(row[0], callback_data=row[1])
+			 if type(row) is tuple
+			 else [ikbtn(el[0], callback_data=el[1])
+				   for el in row])
+			for row in arr]
+
+
 def help(update, context):
 	update.message.reply_text("Track your time with this bot.\n\n"
 								"You have 0 running tasks!\n\n"
@@ -41,12 +52,6 @@ def check_leave_group(update, context):
 
 def start(update, context):
 	chat_id = update.message.chat_id
-	def create_keyboard(arr):
-		return [(ikbtn(row[0], callback_data=row[1])
-				 if type(row) is tuple
-				 else [ikbtn(el[0], callback_data=el[1])
-					   for el in row])
-				for row in arr]
 	keyboard = None
 	reply_msg = ''
 	chat_exist = dbh.chat_exists(chat_id)
@@ -83,31 +88,28 @@ def start(update, context):
 		update.message.reply_text(reply_msg, reply_markup=ikbmkp(keyboard))
 	else:
 		update.message.reply_text(reply_msg)
-	# tasks = dbh.get_task_list(update.message.chat_id)
-	# msg = 'You have {0} tasks'.format(len(tasks))
-	# keyboard = [[tg.InlineKeyboardButton("1", callback_data='1'),
-	# 			tg.InlineKeyboardButton("2", callback_data='2')],
-	#
-	# 			[tg.InlineKeyboardButton("3", callback_data='3')]]
-	#
-	# reply_markup = tg.InlineKeyboardMarkup(keyboard)
-	#
-	# update.message.reply_text('Please choose:', reply_markup=reply_markup)
 
 def list(update, context):
-	# update.message.reply_text("WARNING: Function 'list' is not implemented yet!")
+	chat_id = update.message.chat_id
+	tasks = dbh.get_tasks_list(chat_id)
 
-	err, tasks = dbh.get_task_list(update.message.chat_id)
-	if err != 0:
-		update.message.reply_text("An error occurred on server. This case has already been reported. Please, come back later!")
-
+	reply_msg = 'You have {0} timers:'.format(len(tasks))
 	for task in tasks:
-		logger.info(task)
+		reply_msg += '\n{0}: {1} -> {2}'.format('Unlabeled' if len(task.label) == 0 else task.label,
+												task.start,
+												'Now' if task.end is None else task.end)
+	update.message.reply_text(reply_msg)
 
 def new(update, context):
 	# update.message.reply_text("WARNING: Function 'new' is not implemented yet!")
 
-	dbh.create_task(update.message.chat_id)
+	task = dbh.create_task(update.message.chat_id)
+
+	reply_msg = 'You have created a timer starting at {0}.\n' \
+				'You can label this timer, pick a category or set the time of end'.format(task.start)
+	keyboard = create_keyboard([[('Label', '/label'), ('Category', '/category'), ('Set end', '/end')],
+								[('Start new timer', '/new'), ('List timers', '/list'), ('Add manually', '/add')]])
+	update.message.reply_text(reply_msg, reply_markup=ikbmkp(keyboard))
 
 def pause(update, context):
 	update.message.reply_text("WARNING: Function 'pause' is not implemented yet!")

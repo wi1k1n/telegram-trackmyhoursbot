@@ -25,8 +25,11 @@ class Task(BaseModel):
 
 db.create_tables([Chat, Task])
 
-def get_tasks_list(chat_id):
-	return Task.select().join(Chat).where(Chat.chat_id == chat_id)
+# Returns the list of tasks for given chat_id
+def get_tasks_list(chat_id, sort=None, filter=None):
+	# TODO: sort options 'start_asc', 'start_desc', ...
+	# TODO: filter options 'running', 'finished', 'manually created', 'edited'
+	return Task.select().join(Chat, on=(Task.chat_id == Chat.chat_id)).where(Chat.chat_id == chat_id)
 
 # Checks chat_id for existence and returns 1 if exists, 0 - if not exists, other - error
 def chat_exists(chat_id):
@@ -58,9 +61,11 @@ def delete_chat(chat_id):
 		return len(chats)
 	return 0
 
-# Creates task and returns 1 if created successfully
+# Creates task and returns it if created successfully, otherwise returns None
 def create_task(chat_id, start=None, end=None, label=''):
 	# TODO: check for label duplicate
 	if start is None: start = int(datetime.datetime.timestamp(datetime.datetime.now()))
 	t = Task(chat_id=chat_id, start=start, end=end, label=label)
-	return t.save()
+	if t.save() == 1:
+		return t
+	return None

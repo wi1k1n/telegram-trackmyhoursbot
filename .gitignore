@@ -1,3 +1,4 @@
 .idea/
 *.db
 api_token.py
+__pycache__/
