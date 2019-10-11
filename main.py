@@ -3,21 +3,41 @@
 # This program is dedicated to the public domain under the CC0 license.
 
 """
-Basic example for a bot that uses inline keyboards.
+TrackMyHours
 """
 import logging
 
 import telegram as tg
 from telegram import InlineKeyboardButton as ikbtn, InlineKeyboardMarkup as ikbmkp
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Filters
+from telegram import KeyboardButton as kbtn, ReplyKeyboardMarkup as rkbmkp
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Filters, ConversationHandler, MessageHandler
 
 import dbhandler as dbh
 from api_token import TOKEN as TOKEN
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+IDLE, LIST_TASKS, TASK_CHANGE_MENU, TASK_CHANGE_SPECIFY, SETTINGS, STATISTICS = range(6)
+
+BTN_START = '⏱ Start'
+BTN_STOP = '⏹ Stop'
+BTN_ADD = '➕ Add'
+BTN_LIST = '📃 List'
+BTN_SETTINGS = '⚙ Settings'
+BTN_CATEGORY = 'Category'
+BTN_DESCRIPTION = 'Description'
+BTN_CHANGE_START = 'Change Start'
+BTN_CHANGE_END = 'Change End'
+BTN_DELETE = 'Delete'
+BTN_BACK = 'Back'
+BTN_TO_MENU = 'To Main Menu'
+BTN_CANCEL = 'Cancel'
+BTN_NOW = 'Now'
+BTN_5M = '5m'
+BTN_15M = '15m'
+BTN_30M = '30m'
+BTN_1H = '1h'
 
 # Takes an array of tuples (or of arrays of tuples) of form ('label', 'action')
 # and returns an array of InlineKeyboardButtons
@@ -45,97 +65,75 @@ def help(update, context):
 
 # Leave groups/channels and stay only in private chats
 def check_leave_group(update, context):
-	# logger.info("check_leave_group()")
 	if not update.message.chat.type == update.message.chat.PRIVATE:
-		logger.warning("Added to group! Leaving..")
+		logger.warning("Added to group #{0}! Leaving...".format(update.message.chat_id))
 		update.message.bot.leave_chat(update.message.chat_id)
 
+# Entry point to bot
 def start(update, context):
 	chat_id = update.message.chat_id
-	keyboard = None
-	reply_msg = ''
-	chat_exist = dbh.chat_exists(chat_id)
-	if (chat_exist):
-		tasks = dbh.get_tasks_list(chat_id)
-		if (len(tasks) == 0):
-			reply_msg = 'You can track your time here. ' \
-						'You have not added any timers yet. ' \
-						'Use the following buttons to do that:'
-			keyboard = create_keyboard([[('Start timer', '/new'), ('Add manually', '/add')],
-										[('/help', '/help')]])
+
+	# Add new chat_id to DB
+	if dbh.chat_exists(chat_id) == 0:
+		chat = dbh.create_chat(chat_id)
+		if chat > 1:
+			logger.warning('Error while inserting new chat #{0} into DB: returned value {1}'.format(chat_id, chat))
+
+	markup = rkbmkp([[BTN_START, BTN_STOP],
+					[BTN_ADD, BTN_LIST],
+					[BTN_SETTINGS]],
+					one_time_keyboard=True)
+	update.message.reply_text('Welcome! You can track your time here. Choose option from menu to start.', reply_markup=markup)
+	return IDLE
+
+# Handles actions [Start] and [New] and offers options to tune task properties
+def task_change_menu(upd, ctx):
+	chat_id = upd.message.chat_id
+	text = upd.message.text
+	
+
+	if text == BTN_START:
+		task = dbh.create_task(chat_id)
+		if task is None:
+			logger.warning('Error while inserting new task into DB. Returned \'None\'')
+			upd.message.reply_text('Internal error occured on server. This case has already been reported. Please try again later.')
 		else:
-			reply_msg = 'You can track your time here.\n' \
-						'You have {0} timers. Please choose action:'.format(len(tasks))
-			keyboard = create_keyboard([[('Delete all data', '/destroy')],
-										[('Start timer', '/new'), ('List timers', '/list'), ('Add manually', '/add')],
-										[('/help', '/help')]])
-	else:
-		# TODO: handle DB-errors
-		dbh.create_chat(chat_id)
-		tasks = dbh.get_tasks_list(chat_id)
-		if (len(tasks) == 0):
-			reply_msg = 'Welcome! You can track your time here. Please choose action:'
-			keyboard = create_keyboard([[('Start timer', '/new'), ('Add manually', '/add')],
-										[('/help', '/help')]])
-		else:
-			reply_msg = 'Welcome back! You can track your time here.\n' \
-						'There are some data left from your previous session.\n' \
-						'You have {0} timers. Please choose action:'.format(len(tasks))
-			keyboard = create_keyboard([[('Delete all previous data', '/destroy')],
-										[('Start timer', '/new'), ('List timers', '/list'), ('Add manually', '/add')],
-										[('/help', '/help')]])
-	if keyboard:
-		update.message.reply_text(reply_msg, reply_markup=ikbmkp(keyboard))
-	else:
-		update.message.reply_text(reply_msg)
+			keyboard = [[BTN_CHANGE_START, BTN_CHANGE_END],
+						[BTN_CATEGORY, BTN_DESCRIPTION],
+						[BTN_DELETE, BTN_BACK, BTN_TO_MENU]]
+			markup = rkbmkp(keyboard, one_time_keyboard=True)
+			upd.message.reply_text('Task has been already started at {0}.\n'
+								   'Use menu options to give more information'.format(task.start),
+								   reply_markup=markup)
+			return TASK_CHANGE_MENU
+	pass
 
-def list(update, context):
-	chat_id = update.message.chat_id
-	tasks = dbh.get_tasks_list(chat_id)
+# Responsible for requesting change information from user
+def task_change_specify(upd, ctx):
+	chat_id = upd.message.chat_id
+	text = upd.message.text
 
-	reply_msg = 'You have {0} timers:'.format(len(tasks))
-	for task in tasks:
-		reply_msg += '\n{0}: {1} -> {2}'.format('Unlabeled' if len(task.label) == 0 else task.label,
-												task.start,
-												'Now' if task.end is None else task.end)
-	update.message.reply_text(reply_msg)
+	if text == BTN_CHANGE_START:
+		markup = rkbmkp([[BTN_NOW, BTN_5M, BTN_15M, BTN_1H],
+						[BTN_CANCEL]],
+						one_time_keyboard=True)
+		upd.message.reply_text('Please set (date)time, when task started:',
+							   reply_markup=markup)
+		return TASK_CHANGE_SPECIFY
+	pass
 
-def new(update, context):
-	# update.message.reply_text("WARNING: Function 'new' is not implemented yet!")
-
-	task = dbh.create_task(update.message.chat_id)
-
-	reply_msg = 'You have created a timer starting at {0}.\n' \
-				'You can label this timer, pick a category or set the time of end'.format(task.start)
-	keyboard = create_keyboard([[('Label', '/label'), ('Category', '/category'), ('Set end', '/end')],
-								[('Start new timer', '/new'), ('List timers', '/list'), ('Add manually', '/add')]])
-	update.message.reply_text(reply_msg, reply_markup=ikbmkp(keyboard))
-
-def pause(update, context):
-	update.message.reply_text("WARNING: Function 'pause' is not implemented yet!")
-
-def resume(update, context):
-	update.message.reply_text("WARNING: Function 'resume' is not implemented yet!")
-
-def stop(update, context):
-	update.message.reply_text("WARNING: Function 'stop' is not implemented yet!")
-
-def add(update, context):
-	update.message.reply_text("WARNING: Function 'add' is not implemented yet!")
-
-def destroy(update, context):
-	update.message.reply_text("WARNING: Function 'destroy' is not implemented yet!")
-
-def about(update, context):
-	update.message.reply_text("WARNING: Function 'about' is not implemented yet!")
+# Parses user's information
+def task_change(upd, ctx):
+	chat_id = upd.message.chat_id
+	text = upd.message.text
 
 
-def button(update, context):
-	query = update.callback_query
+	pass
 
-	query.edit_message_text(text="Selected option: {}".format(query.data))
-
-
+def debug_msg_blank(update, context):
+	""" Temporary message handler which just repeats what it gets """
+	text = update.message.text
+	update.message.reply_text(text)
 
 def error(update, context):
 	"""Log Errors caused by Updates."""
@@ -150,20 +148,25 @@ def main():
 	dp = updater.dispatcher
 
 	dp.add_handler(tg.ext.MessageHandler(Filters.all, check_leave_group), group=0)
-	# dp.add_handler(tg.ext.MessageHandler(Filters.status_update.new_chat_members, check_leave_group))
 
-	dp.add_handler(CommandHandler('help', help), group=1)
-	dp.add_handler(CommandHandler('start', start), group=1)
-	dp.add_handler(CommandHandler('list', list), group=1)
-	dp.add_handler(CommandHandler('new', new), group=1)
-	dp.add_handler(CommandHandler('add', add), group=1)
-	dp.add_handler(CommandHandler('pause', pause), group=1)
-	dp.add_handler(CommandHandler('resume', resume), group=1)
-	dp.add_handler(CommandHandler('stop', stop), group=1)
-	dp.add_handler(CommandHandler('destroy', destroy), group=1)
-	dp.add_handler(CommandHandler('about', destroy), group=1)
+	conv_handler = ConversationHandler(
+		entry_points=[CommandHandler('start', start)],
 
-	dp.add_handler(CallbackQueryHandler(button), group=1)
+		states={
+			IDLE: [MessageHandler(Filters.regex('^({0}|{1})$'.format(BTN_START, BTN_ADD)), task_change_menu)],
+
+			TASK_CHANGE_MENU: [MessageHandler(Filters.regex('^({0}|{1}|{2}|{3}|{4})$'
+															.format(BTN_CHANGE_START, BTN_CHANGE_END, BTN_CATEGORY, BTN_DESCRIPTION, BTN_DELETE)),
+											  task_change_specify)],
+
+			TASK_CHANGE_SPECIFY: [MessageHandler(Filters.text, task_change)],
+		},
+
+		fallbacks=[MessageHandler(Filters.text, debug_msg_blank)]
+	)
+	dp.add_handler(conv_handler, group=1)
+
+	# dp.add_handler(CallbackQueryHandler(button), group=1)
 	dp.add_error_handler(error)
 
 	# Start the Bot
