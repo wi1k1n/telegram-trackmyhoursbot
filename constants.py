@@ -21,7 +21,7 @@ CMD_LIST = 'list'
 
 # Reply messages
 MSGC_WELCOME = "Hi! I can track your time. Just use buttons to manage or use /help to get more information"
-MSGC_JOBSTARTED = 'Started at {}'
+MSGC_JOBSTARTED = 'Started on {}'
 MSGC_JOBPAUSED = 'Paused at {}'
 MSGC_JOBRESUMED = 'Resumed at {}'
 MSGC_JOBSTOPPED = 'Stopped on {}\nTotal time: {}{}'

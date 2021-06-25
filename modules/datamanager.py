@@ -18,8 +18,11 @@ class DataManager:
 		if not self.hasUser(usr):
 			self.db[usr.id] = User(usr)
 
-	def hasUser(self, usr):
-		return usr.id in self.db
+	def hasUser(self, usr, addIfNotExists=False):
+		exists = usr.id in self.db
+		if not exists and addIfNotExists:
+			self.addUser(usr)
+		return exists
 
 	def initialize(self, dontCreate=False):
 		""" Load database or create if not exists """

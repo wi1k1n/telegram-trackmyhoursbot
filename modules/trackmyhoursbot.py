@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from telegram import ParseMode
 from telegram.ext import Updater, Filters, CommandHandler, ConversationHandler, MessageHandler, CallbackQueryHandler
 from constants import *
@@ -6,13 +7,13 @@ from keyboards import *
 from util import *
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TrackMyHoursBot:
 	def __init__(self, token, dataManager):
 		self.token = token
-		self.dataManager = dataManager
+		self.dm = dataManager
 
 	def startBot(self):
 		updater = Updater(self.token, use_context=True)
@@ -53,22 +54,17 @@ class TrackMyHoursBot:
 		updater.idle()
 
 
-	def startTimer(self, upd, ctx):
-		usr = self.dataManager[upd.effective_user.id]
-		ts = usr.startTimer()
-		upd.message.reply_text(MSGC_JOBSTARTED.format(formatTimeStamp(ts, 'full')), reply_markup=mup_pause_stop)
-
-
 	def welcomeHandler(self, upd, ctx):
 		""" Called at the very beginning by /start. """
 		logger.debug('>> welcome(upd, ctx)')
 
 		# simply start timer if user already exists
-		if self.dataManager.hasUser(upd.effective_user):
-			self.startTimer(upd, ctx)
+		if self.dm.hasUser(upd.effective_user):
+			ts = self.dm[upd.effective_user.id].startTimer()
+			upd.message.reply_text(MSGC_JOBSTARTED.format(formatTimeStamp(ts, 'full')), reply_markup=mup_pause_stop)
 			return STATE_WAIT_FOR_START
 
-		self.dataManager.addUser(upd.effective_user)
+		self.dm.addUser(upd.effective_user)
 
 		# Send welcome message
 		msg = upd.message.reply_text(MSGC_WELCOME, reply_markup=mup_start)
@@ -77,22 +73,18 @@ class TrackMyHoursBot:
 	def startHandler(self, upd, ctx):
 		""" Called by command /start """
 		logger.debug('>> start(upd, ctx)')
+		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
 
-		if not self.dataManager.hasUser(upd.effective_user):
-			self.dataManager.addUser(upd.effective_user)
-
-		self.startTimer(upd, ctx)
+		ts = self.dm[upd.effective_user.id].startTimer()
+		upd.message.reply_text(MSGC_JOBSTARTED.format(formatTimeStamp(ts, 'full')), reply_markup=mup_pause_stop)
 		return STATE_RUNNING
 
 	def pauseHandler(self, upd, ctx):
 		""" Called by command /pause """
 		logger.debug('>> pause(upd, ctx)')
+		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
 
-		if not self.dataManager.hasUser(upd.effective_user):
-			self.dataManager.addUser(upd.effective_user)
-
-		usr = self.dataManager[upd.effective_user.id]
-		ts = usr.pauseTimer()
+		ts = self.dm[upd.effective_user.id].pauseTimer()
 
 		upd.message.reply_text(MSGC_JOBPAUSED.format(formatTimeStamp(ts, 'time')), reply_markup=mup_resume_stop)
 
@@ -101,12 +93,9 @@ class TrackMyHoursBot:
 	def resumeHandler(self, upd, ctx):
 		""" Called by command /resume """
 		logger.debug('>> resume(upd, ctx)')
+		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
 
-		if not self.dataManager.hasUser(upd.effective_user):
-			self.dataManager.addUser(upd.effective_user)
-
-		usr = self.dataManager[upd.effective_user.id]
-		ts = usr.startTimer()
+		ts = self.dm[upd.effective_user.id].startTimer()
 
 		upd.message.reply_text(MSGC_JOBRESUMED.format(formatTimeStamp(ts, 'time')), reply_markup=mup_pause_stop)
 
@@ -115,12 +104,9 @@ class TrackMyHoursBot:
 	def stopHandler(self, upd, ctx):
 		""" Called by command /stop """
 		logger.debug('>> stop(upd, ctx)')
+		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
 
-		if not self.dataManager.hasUser(upd.effective_user):
-			self.dataManager.addUser(upd.effective_user)
-
-		usr = self.dataManager[upd.effective_user.id]
-		ts = usr.stopTimer()
+		ts = self.dm[upd.effective_user.id].stopTimer()
 
 		upd.message.reply_text("Stopped!", reply_markup=mup_start)
 
@@ -130,8 +116,25 @@ class TrackMyHoursBot:
 	def lsHandler(self, upd, ctx):
 		""" Called by command /ls """
 		logger.debug('>> ls(upd, ctx)')
+		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
 
-		upd.message.reply_text('Command /list is not implemented yet!')
+		reply = ''
+		for interval in self.dm[upd.effective_user.id].intervals:
+			if not len(interval): continue
+			tsStart = interval[0]
+			running = len(interval) % 2
+			int4work = np.array(interval)
+			if running:
+				int4work = np.concatenate((int4work, [curTimeStamp()]))
+			timeWork = sum(int4work[1::2]) - sum(int4work[0::2])
+			int4Pause = int4work[1:-1]
+			timePause = sum(int4Pause[1::2]) - sum(int4Pause[0::2])
+			reply += ('>' if running else '#') + ' [' + formatTimeStamp(tsStart, 'date') + '] ' + \
+					 formatTimeStamp(tsStart, 'time') + ' => w ' + formatSeconds(timeWork) + \
+					 ' (p ' + formatSeconds(timePause) + ')\n'
+
+		# upd.message.reply_text('Command /list is not implemented yet!')
+		upd.message.reply_text(reply)
 
 
 	def errorHandler(self, upd, ctx):
