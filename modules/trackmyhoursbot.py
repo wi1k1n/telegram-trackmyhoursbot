@@ -30,6 +30,7 @@ class TrackMyHoursBot:
 				CommandHandler(CMD_LIST, self.lsHandler),
 				CommandHandler(CMD_CLEAR, self.clearHandler),
 				CommandHandler(CMD_HELP, self.helpHandler),
+				CallbackQueryHandler(self.callBackQueryHandler),
 				MessageHandler(Filters.all, self.welcomeHandler)
 			],
 			states={
@@ -41,6 +42,7 @@ class TrackMyHoursBot:
 					CommandHandler(CMD_LIST, self.lsHandler),
 					CommandHandler(CMD_CLEAR, self.clearHandler),
 					CommandHandler(CMD_HELP, self.helpHandler),
+					CallbackQueryHandler(self.callBackQueryHandler),
 				],
 				STATE_RUNNING: [
 					CommandHandler(CMD_START, self.startHandler),
@@ -50,6 +52,7 @@ class TrackMyHoursBot:
 					CommandHandler(CMD_LIST, self.lsHandler),
 					CommandHandler(CMD_CLEAR, self.clearHandler),
 					CommandHandler(CMD_HELP, self.helpHandler),
+					CallbackQueryHandler(self.callBackQueryHandler),
 				],
 				STATE_PAUSED: [
 					CommandHandler(CMD_START, self.startHandler),
@@ -59,9 +62,11 @@ class TrackMyHoursBot:
 					CommandHandler(CMD_LIST, self.lsHandler),
 					CommandHandler(CMD_CLEAR, self.clearHandler),
 					CommandHandler(CMD_HELP, self.helpHandler),
+					CallbackQueryHandler(self.callBackQueryHandler),
 				],
 				STATE_WAIT_CLEAR_APPROVAL: [
 					MessageHandler(Filters.regex(re.compile(r'yes', re.IGNORECASE)), self.finallyClearHandler),
+					CallbackQueryHandler(self.callBackQueryHandler),
 					MessageHandler(Filters.all, self.abortClearHandler),
 				]
 			},
@@ -96,7 +101,7 @@ class TrackMyHoursBot:
 			initialState = usr.state
 			ts = usr.startTimer()
 			if initialState == State.PAUSED or initialState == State.RUNNING:
-				(_, w, p, _, _) = usr.getIntervalStat(-1)
+				(_, w, _, p, _, _) = usr.getStatistics()
 				reply = MSGC_JOBRESUMED.format(formatSeconds(w), formatSeconds(p))
 			else:
 				reply = MSGC_JOBSTARTED.format(formatTimeStamp(ts, 'full'))
@@ -118,7 +123,7 @@ class TrackMyHoursBot:
 		initialState = usr.state
 		ts = usr.startTimer()
 		if initialState == State.PAUSED or initialState == State.RUNNING:
-			(_, w, p, _, _) = usr.getIntervalStat(-1)
+			(_, w, _, p, _, _) = usr.getStatistics()
 			reply = MSGC_JOBRESUMED.format(formatSeconds(w), formatSeconds(p))
 		else:
 			reply = MSGC_JOBSTARTED.format(formatTimeStamp(ts, 'full'))
@@ -133,7 +138,7 @@ class TrackMyHoursBot:
 		usr = self.dm[upd.effective_user.id]
 		initialState = usr.state
 		ts = usr.pauseTimer()
-		(_, w, p, _, _) = usr.getIntervalStat(-1)
+		(_, w, _, p, _, _) = usr.getStatistics()
 		if initialState == State.PAUSED:
 			reply = MSGC_JOBALREADYPAUSED.format(formatSeconds(w), formatSeconds(p))
 			upd.message.reply_text(reply, reply_markup=mup_resume_stop)
@@ -155,7 +160,7 @@ class TrackMyHoursBot:
 		usr = self.dm[upd.effective_user.id]
 		initialState = usr.state
 		ts = usr.startTimer()
-		(_, w, p, _, _) = usr.getIntervalStat(-1)
+		(_, w, _, p, _, _) = usr.getStatistics()
 		if initialState == State.PAUSED:
 			reply = MSGC_JOBRESUMED.format(formatSeconds(w), formatSeconds(p))
 		elif initialState == State.RUNNING:
@@ -174,7 +179,7 @@ class TrackMyHoursBot:
 		usr = self.dm[upd.effective_user.id]
 		initialState = usr.state
 		ts = usr.stopTimer()
-		(_, w, p, pn, _) = usr.getIntervalStat(-1)
+		(_, w, _, p, pn, _) = usr.getStatistics()
 		if initialState == State.PAUSED or initialState == State.RUNNING:
 			reply = MSGC_JOBSTOPPED.format(formatSeconds(w), pn, formatSeconds(p))
 		else:
@@ -183,34 +188,51 @@ class TrackMyHoursBot:
 		upd.message.reply_text(reply, reply_markup=mup_start)
 		return STATE_WAIT_FOR_START
 
+	def getListTracksData(self, usr):
+		reply = ''
+		for i in range(len(usr.tracks)):
+			tsStart, timeWork, _, timePause, _, state = usr.getStatistics(i)
+			reply += ('>' if state == State.RUNNING else '#') + ' [' + formatTimeStamp(tsStart, 'date') + '] ' + \
+					 formatTimeStamp(tsStart, 'time') + ' => ' + formatSeconds(timeWork) + \
+					 ' / ' + formatSeconds(timePause) + '\n'
+		return reply.strip()
+
 	def lsHandler(self, upd, ctx):
 		""" Called by command /ls """
 		logger.debug('>> lsHandler(upd, ctx)')
 		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
 
 		usr = self.dm[upd.effective_user.id]
-		reply = ''
-		for i in range(len(usr.intervals)):
-			tsStart, timeWork, timePause, _, running = usr.getIntervalStat(i)
-			reply += ('>' if running else '#') + ' [' + formatTimeStamp(tsStart, 'date') + '] ' + \
-					 formatTimeStamp(tsStart, 'time') + ' => ' + formatSeconds(timeWork) + \
-					 ' / ' + formatSeconds(timePause) + '\n'
+		reply = self.getListTracksData(usr)
 		if not reply:
-			reply = MSGC_LSNOTRACKSYET
+			upd.message.reply_text(MSGC_LSNOTRACKSYET, reply_markup=mup_start)
+			return
 		# upd.message.reply_text('Command /list is not implemented yet!')
-		upd.message.reply_text(reply)
+		upd.message.reply_text(reply, reply_markup=imup_list_update)
+
+	def callBackQueryHandler(self, upd, ctx):
+		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
+		query = upd.callback_query
+		query.answer()
+		usr = self.dm[upd.effective_user.id]
+		reply = self.getListTracksData(usr)
+		if not reply:
+			query.edit_message_text(MSGC_LSNOTRACKSYET)
+			return
+		if (upd.effective_message.text.strip() != reply):
+			query.edit_message_text(reply, reply_markup=imup_list_update)
 
 	def clearHandler(self, upd, ctx):
 		""" Called by command /clear """
 		logger.debug('>> clearHandler(upd, ctx)')
 		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
-		upd.message.reply_text(MSGC_CLEARWARNING.format(len(self.dm[upd.effective_user.id].intervals)))
+		upd.message.reply_text(MSGC_CLEARWARNING.format(len(self.dm[upd.effective_user.id].tracks)))
 		return STATE_WAIT_CLEAR_APPROVAL
 	def finallyClearHandler(self, upd, ctx):
 		""" Called by answering 'yes' after /clear command """
 		logger.debug('>> finallyClearHandler(upd, ctx)')
 		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
-		self.dm[upd.effective_user.id].intervals = []
+		self.dm[upd.effective_user.id].tracks = []
 		upd.message.reply_text(MSGC_CLEARSUCCESS)
 		return STATE_WAIT_FOR_START
 	def abortClearHandler(self, upd, ctx):

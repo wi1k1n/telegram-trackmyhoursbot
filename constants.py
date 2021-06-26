@@ -38,9 +38,9 @@ MSGC_CLEARSUCCESS = 'All your track are successfully cleared. You can continue t
 MSGC_CLEARABORT = 'Your tracks are NOT cleared!'
 
 MSGC_HELP = '/start - starts new track (resumes current track if it was not stopped with /stop command)'+\
-			'/pause - pauses current track'+\
-			'/resume - resumes current track (starts new one if current track was stopped with /stop command)'+\
-			'/stop - stops current track'+\
-			'/list - lists all the recorded tracks'+\
-			'/clear - clears all the recorded tracks (requires confirmation)'+\
-			'/help - shows this message'
+			'\n/pause - pauses current track'+\
+			'\n/resume - resumes current track (starts new one if current track was stopped with /stop command)'+\
+			'\n/stop - stops current track'+\
+			'\n/list - lists all the recorded tracks'+\
+			'\n/clear - clears all the recorded tracks (requires confirmation)'+\
+			'\n/help - shows this message'

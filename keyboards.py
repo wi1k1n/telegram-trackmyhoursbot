@@ -1,5 +1,4 @@
-from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
-
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from constants import *
 
 def createKeyboard(items):
@@ -18,3 +17,5 @@ def createKeyboard(items):
 mup_start = createKeyboard([['/start'], ['/list']])
 mup_pause_stop = createKeyboard([['/pause', '/stop'], ['/list']])
 mup_resume_stop = createKeyboard([['/resume', '/stop'], ['/list']])
+
+imup_list_update = InlineKeyboardMarkup([[InlineKeyboardButton('Refresh', callback_data=1)]])

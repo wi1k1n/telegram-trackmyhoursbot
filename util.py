@@ -46,4 +46,4 @@ def formatSeconds(seconds):
 		startedFlag = True
 	if startedFlag or seconds > 0:
 		ret += ' {}s'.format(seconds)
-	return ret.strip()
+	return ret.strip() if ret else '0s'
