@@ -53,7 +53,7 @@ class User:
 
 	def getIntervalStat(self, idx):
 		if idx >= len(self.intervals) or idx < -len(self.intervals) or not len(self.intervals[idx]):
-			return (None, None, None, None)
+			return (None, None, None, None, None)
 		interval = self.intervals[idx]
 		tsStart = interval[0]
 		running = len(interval) % 2
