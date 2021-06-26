@@ -1,5 +1,5 @@
 .idea
 .gitignore
-api_token.py
 __pycache__/
 data/
+configuration.py
