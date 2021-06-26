@@ -1,2 +1,2 @@
-TOKEN = '936170346:AAFY4qqbXUPFvtoO-L1jFbCiiqiBp4M0dhc'
+TOKEN = 'BOT_TOKEN'
 DB_PATH = 'data/main.db'
