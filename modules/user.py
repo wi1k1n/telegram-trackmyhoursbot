@@ -39,7 +39,7 @@ class User:
 		if self.state == State.RUNNING:
 			if len(self.intervals):
 				self.intervals[-1].append(ts)
-		self.state = State.PAUSED
+			self.state = State.PAUSED
 		return ts
 
 	def stopTimer(self, ts=None):
@@ -50,3 +50,17 @@ class User:
 				self.intervals[-1].append(ts)
 		self.state = State.STOPPED
 		return ts
+
+	def getIntervalStat(self, idx):
+		if idx >= len(self.intervals) or idx < -len(self.intervals) or not len(self.intervals[idx]):
+			return (None, None, None, None)
+		interval = self.intervals[idx]
+		tsStart = interval[0]
+		running = len(interval) % 2
+		int4work = np.array(interval)
+		if running:
+			int4work = np.concatenate((int4work, [curTimeStamp()]))
+		timeWork = sum(int4work[1::2]) - sum(int4work[0::2])
+		int4Pause = int4work[1:-1]
+		timePause = sum(int4Pause[1::2]) - sum(int4Pause[0::2])
+		return (tsStart, timeWork, timePause, (len(int4work)-1) - len(int4work)//2, running)

@@ -1,7 +1,8 @@
 # States for ConversationHangler
 STATE_WAIT_FOR_START, \
 STATE_RUNNING, \
-STATE_PAUSED = range(3)
+STATE_PAUSED, \
+STATE_WAIT_CLEAR_APPROVAL = range(4)
 
 # Chat_data keys
 DK_JOBS = 'jobs'
@@ -18,12 +19,28 @@ CMD_PAUSE = 'pause'
 CMD_STOP = 'stop'
 CMD_RESUME = 'resume'
 CMD_LIST = 'list'
+CMD_CLEAR = 'clear'
+CMD_HELP = 'help'
 
 # Reply messages
 MSGC_WELCOME = "Hi! I can track your time. Just use buttons to manage or use /help to get more information"
 MSGC_JOBSTARTED = 'Started on {}'
-MSGC_JOBPAUSED = 'Paused at {}'
-MSGC_JOBRESUMED = 'Resumed at {}'
-MSGC_JOBSTOPPED = 'Stopped on {}\nTotal time: {}{}'
-MSGC_JOBSTOPPED_PAUSESEXTRA = '\nTotal pause time: {} ({} {})'
-MSGC_JOBSTOPPED_WITHOUTPAUSES = '\nTotal working time: {}'
+MSGC_JOBALREADYRUNNING = 'The track is already running. Time: {} / {}'
+MSGC_JOBPAUSED = 'Paused. Time: {} / {}'
+MSGC_JOBALREADYPAUSED = 'The track was already paused. Time: {} / {}'
+MSGC_JOBALREADYSTOPPEDFORPAUSE = 'No running track to pause. Start new track with /start command'
+MSGC_JOBRESUMED = 'Resumed. Time: {} / {}'
+MSGC_JOBSTOPPED = 'Stopped.\nTotal work time: {} with {} pauses for {}.'
+MSGC_JOBALREADYSTOPPED = 'No active track. Use /start to start new track or /list to check your previous tracks.'
+MSGC_LSNOTRACKSYET = 'You have no tracks yet. Use /start command to start recording one'
+MSGC_CLEARWARNING = 'You have {} recorded tracks. If you really want to delete all of them, please send me \'yes\'. Send \'no\' if you have changed your mind'
+MSGC_CLEARSUCCESS = 'All your track are successfully cleared. You can continue tracking your time as usually.'
+MSGC_CLEARABORT = 'Your tracks are NOT cleared!'
+
+MSGC_HELP = '/start - starts new track (resumes current track if it was not stopped with /stop command)'+\
+			'/pause - pauses current track'+\
+			'/resume - resumes current track (starts new one if current track was stopped with /stop command)'+\
+			'/stop - stops current track'+\
+			'/list - lists all the recorded tracks'+\
+			'/clear - clears all the recorded tracks (requires confirmation)'+\
+			'/help - shows this message'
