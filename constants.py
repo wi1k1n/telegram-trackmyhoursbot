@@ -34,12 +34,13 @@ MSGC_JOBSTOPPED = 'Stopped.\nTotal work time: {} with {} pauses for {}.'
 MSGC_JOBALREADYSTOPPED = 'No active track. Use /start to start new track or /list to check your previous tracks.'
 MSGC_LSNOTRACKSYET = 'You have no tracks yet. Use /start command to start recording one'
 MSGC_CLEARWARNING = 'You have {} recorded tracks. If you really want to delete all of them, please send me \'yes\'. Send \'no\' if you have changed your mind'
-MSGC_CLEARSUCCESS = 'All your track are successfully cleared. You can continue tracking your time as usually.'
+MSGC_CLEARNODATA = 'You have no recorded tracks. You can start new track with /start command'
+MSGC_CLEARSUCCESS = 'All your track are successfully cleared. You can start new track with /start command.'
 MSGC_CLEARABORT = 'Your tracks are NOT cleared!'
 
-MSGC_HELP = '/start - starts new track (resumes current track if it was not stopped with /stop command)'+\
+MSGC_HELP = '/start - starts new track (or resumes paused track)'+\
 			'\n/pause - pauses current track'+\
-			'\n/resume - resumes current track (starts new one if current track was stopped with /stop command)'+\
+			'\n/resume - resumes current track (or starts new one if current was stopped)'+\
 			'\n/stop - stops current track'+\
 			'\n/list - lists all the recorded tracks'+\
 			'\n/clear - clears all the recorded tracks (requires confirmation)'+\

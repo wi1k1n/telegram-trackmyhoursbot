@@ -226,8 +226,14 @@ class TrackMyHoursBot:
 		""" Called by command /clear """
 		logger.debug('>> clearHandler(upd, ctx)')
 		self.dm.hasUser(upd.effective_user, addIfNotExists=True)
-		upd.message.reply_text(MSGC_CLEARWARNING.format(len(self.dm[upd.effective_user.id].tracks)))
-		return STATE_WAIT_CLEAR_APPROVAL
+		usr = self.dm[upd.effective_user.id]
+		if len(usr.tracks):
+			upd.message.reply_text(MSGC_CLEARWARNING.format(len(self.dm[upd.effective_user.id].tracks)))
+			return STATE_WAIT_CLEAR_APPROVAL
+
+		upd.message.reply_text(MSGC_CLEARNODATA)
+		return STATE_WAIT_FOR_START
+
 	def finallyClearHandler(self, upd, ctx):
 		""" Called by answering 'yes' after /clear command """
 		logger.debug('>> finallyClearHandler(upd, ctx)')

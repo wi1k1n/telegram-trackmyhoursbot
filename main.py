@@ -29,7 +29,7 @@ def cli(bot, dm):
 		for id in dm.db.keys():
 			usr = dm.db[id]
 			print('[' + str(id) + '] ' + usr.firstName + ((' (@' + usr.username + ')') if usr.username else '') + '. ' + \
-				  str(len(usr.intervals)) + ' tracks')
+				  str(len(usr.tracks)) + ' tracks')
 
 	def save(bot, dm):
 		print('Saving database..')
@@ -50,6 +50,7 @@ def cli(bot, dm):
 
 	is_idle = True
 	while is_idle:
+		print('> ', end='')
 		inp = input()
 		cmdFound = False
 		for cmdOption in cmds:
